@@ -1,44 +1,64 @@
+-- Members: Naman Biyani and Tanmay Shah
+-- LS206_T20_LAB4
+-- Moore State Machine for Traffic Light Controller
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+-- entity defines the traffic light controller inputs and outputs
 Entity moore_machine IS Port
 (
--- switch : IN std_logic;
- clk_input, reset, enable, blink_sig	: IN std_logic;
- NSrequest, EWrequest : IN std_logic;
- red, yellow, green					: OUT std_logic;
+ offline_mode : IN std_logic;  -- offline_mode input
+ clk_input    : IN std_logic;  -- global clock
+ reset        : IN std_logic;  -- asynchronous reset input
+ enable       : IN std_logic;  -- state machine enable control
+ blink_sig    : IN std_logic;  -- blinking signal for certain lights
+
+ -- traffic request inputs from different directions (NS & EW)
+ NSrequest  : IN std_logic;  
+ EWrequest  : IN std_logic;  
+
+ -- traffic light outputs for North-South direction
+ redNS, yellowNS, greenNS : OUT std_logic;
+
+ -- traffic light outputs for East-West direction
  redEW, yellowEW, greenEW : OUT std_logic;
- NSCrossing, EWCrossing, NSClear, EWClear : OUT std_logic;
+
+ -- crossing and clearance/reset outputs
+ NSCrossing, EWCrossing : OUT std_logic;
+ NSClear, EWClear       : OUT std_logic; 
+
+ -- debug output to show current state of machine
  CurrentState : OUT std_logic_vector(3 downto 0)
  );
 END ENTITY;
  
-
- Architecture MM of moore_machine is
+-- architecture implements the Moore State Machine logic
+Architecture MM of moore_machine is 
  
- 
+ -- define possible states for different phases for the traffic light controller
+ TYPE STATE_NAMES IS (s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15);   
 
- 
- TYPE STATE_NAMES IS (s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15);   -- list all the STATE_NAMES values
- 
- SIGNAL current_state, next_state	:  STATE_NAMES;     	-- signals of type STATE_NAMES
+ -- internal signals to manage state transitions from one to another
+ SIGNAL current_state, next_state : STATE_NAMES;     	
 
 
- BEGIN
- 
-
+ BEGIN 
  -------------------------------------------------------------------------------
  --State Machine:
  -------------------------------------------------------------------------------
 
- -- REGISTER_LOGIC PROCESS EXAMPLE
- 
-Register_Section: PROCESS (clk_input)  -- this process updates with a clock
+-- REGISTER_LOGIC PROCESS 
+-- manages state updates on clock edge, accounts for reset and enable for state progression
+
+Register_Section: PROCESS (clk_input)  -- synchronous process triggered by clock
 BEGIN
 	IF(rising_edge(clk_input)) THEN
+		-- reset condition: force machine to initial state
 		IF (reset = '1') THEN
 			current_state <= s0;
+		-- normal operation: update state when enabled
 		ELSIF (reset = '0' AND enable = '1') THEN
 			current_state <= next_state;
 		END IF;
@@ -47,26 +67,30 @@ END PROCESS;
 
 
 
+
 -- TRANSITION LOGIC PROCESS EXAMPLE
-
+-- defines state machine's next state logic for traffic light sequence and prioritization of requests
 Transition_Section: PROCESS (EWrequest, NSrequest, current_state) 
-
 BEGIN
 	CASE current_state IS
-		WHEN s0 =>
+		WHEN s0 => -- state s0: initial state
+			-- prioritize East-West traffic request if active (skip from state 0 to 6)
+			-- else move to state 1
 			if (EWrequest = '1' and NSrequest = '0') then
 				next_state <= s6;
 			else
 				next_state <= s1;
 			end if;
 				
-		WHEN s1 =>		
+		WHEN s1 => -- state s1: prioritize East-West traffic request if active (skip from state 1 to 6)
+			   		-- else move to state 2
 			if (EWrequest = '1' and NSrequest = '0') then
 				next_state <= s6;
 			else
 				next_state <= s2;
 			end if;
-				
+		
+		-- states (s2-s7): progression through traffic light sequence
 		WHEN s2 =>		
 			next_state <= s3;
 			
@@ -78,27 +102,30 @@ BEGIN
 				
 		WHEN s5 =>		
 			next_state <= s6;
-			
+		
 		WHEN s6 =>		
 			next_state <= s7;
 				
 		WHEN s7 =>		
 			next_state <= s8;
-				
-		WHEN s8 =>		
+		
+		WHEN s8 => -- state s8: prioritize North-South traffic request if active (skip from state 8 to 14)
+			   -- else move to state 9
 			if (EWrequest = '0' and NSrequest = '1') then
 				next_state <= s14;
 			else
 				next_state <= s9;
 			end if;
 			
-		WHEN s9 =>		
+		WHEN s9 => -- state s9: prioritize North-South traffic request if active (skip from state 9 to 14)
+			   -- else move to state 10	
 			if (EWrequest = '0' and NSrequest = '1') then
 				next_state <= s14;
 			else
 				next_state <= s10;
 			end if;
-				
+		
+		-- states s10-s14: continue traffic light sequence
 		WHEN s10 =>		
 			next_state <= s11;
 				
@@ -115,12 +142,16 @@ BEGIN
 			next_state <= s15;
 				
 		WHEN s15 =>
---			IF(switch = '1') THEN
---				next_state <= s15;
---			ELSE
+			-- state s15: handling offline mode
+			IF (offline_mode = '1') THEN
+				-- stay in current state when in offline mode
+				next_state <= s15;
+			ELSE
+				-- return to initial state when not in offline mode
 				next_state <= s0;
---			END IF;
-		WHEN OTHERS =>
+			END IF;
+			
+		WHEN OTHERS => -- fallback to state s0
 			next_state <= s0;
 	
 	  END CASE;
@@ -128,19 +159,22 @@ BEGIN
  
 
 -- DECODER SECTION PROCESS EXAMPLE (MOORE FORM SHOWN)
+-- process handles the state transitions and output logic for a traffic light controller
+-- uses a 16-state (s0-s15) state machine to manage North-South and East-West traffic signals and pedestrian signals
 
 Decoder_Section: PROCESS (blink_sig, current_state)
 
 BEGIN
-		NSClear <= '0';
-		EWClear <= '0';
+    -- initialization of clear signals for pedestrians
+    NSClear <= '0';
+    EWClear <= '0';
 
-     CASE current_state IS
+    CASE current_state IS -- CurrentState updates in each state to represent the binary representation of the current state
 	  
-         WHEN s0 =>		
-				red <= '0';
-				yellow <= '0';
-				green <= blink_sig;
+        		WHEN s0 => -- green light blinking for NS and solid red for EW, and crossing is prohibited
+				redNS <= '0';
+				yellowNS <= '0';
+				greenNS <= blink_sig;
 				
 				redEW <= '1';
 				yellowEW <= '0';
@@ -150,10 +184,10 @@ BEGIN
 				EWCrossing <= '0';
 				CurrentState <= "0000";
 				
-			WHEN s1 =>		
-				red <= '0';
-				yellow <= '0';
-				green <= blink_sig;
+			WHEN s1 => -- green light blinking for NS and solid red for EW, and crossing is prohibited
+				redNS <= '0';
+				yellowNS <= '0';
+				greenNS <= blink_sig;
 				
 				redEW <= '1';
 				yellowEW <= '0';
@@ -163,10 +197,10 @@ BEGIN
 				EWCrossing <= '0';
 				CurrentState <= "0001";
 				
-			WHEN s2 =>		
-				red <= '0';
-				yellow <= '0';
-				green <= '1';
+			WHEN s2 => -- solid green light for NS and solid red for EW, and NS crossing signal activated			
+				redNS <= '0';
+				yellowNS <= '0';
+				greenNS <= '1';
 				
 				redEW <= '1';
 				yellowEW <= '0';
@@ -176,10 +210,10 @@ BEGIN
 				EWCrossing <= '0';
 				CurrentState <= "0010";
 				
-			WHEN s3 =>
-				red <= '0';
-				yellow <= '0';
-				green <= '1';
+			WHEN s3 => -- solid green light for NS and solid red for EW, and NS crossing signal activated
+				redNS <= '0';
+				yellowNS <= '0';
+				greenNS <= '1';
 				
 				redEW <= '1';
 				yellowEW <= '0';
@@ -189,10 +223,10 @@ BEGIN
 				EWCrossing <= '0';
 				CurrentState <= "0011";
 									
-			WHEN s4 =>		
-				red <= '0';
-				yellow <= '0';
-				green <= '1';
+			WHEN s4 => -- solid green light for NS and solid red for EW, and NS crossing signal activated		
+				redNS <= '0';
+				yellowNS <= '0';
+				greenNS <= '1';
 				
 				redEW <= '1';
 				yellowEW <= '0';
@@ -202,10 +236,10 @@ BEGIN
 				EWCrossing <= '0';
 				CurrentState <= "0100";
 									
-			WHEN s5 =>		
-				red <= '0';
-				yellow <= '0';
-				green <= '1';
+			WHEN s5 => -- solid green light for NS and solid red for EW, and NS crossing signal activated	
+				redNS <= '0';
+				yellowNS <= '0';
+				greenNS <= '1';
 				
 				redEW <= '1';
 				yellowEW <= '0';
@@ -215,10 +249,11 @@ BEGIN
 				EWCrossing <= '0';
 				CurrentState <= "0101";
 								
-			WHEN s6 =>		
-				red <= '0';
-				yellow <= '1';
-				green <= '0';
+			WHEN s6 => -- solid amber light for NS and solid red for EW, and activates NS request clear for pedestrian walk
+		
+				redNS <= '0';
+				yellowNS <= '1';
+				greenNS <= '0';
 				
 				redEW <= '1';
 				yellowEW <= '0';
@@ -231,10 +266,10 @@ BEGIN
 				NSClear <= '1';
 				EWClear <= '0';
 									
-			WHEN s7 =>		
-				red <= '0';
-				yellow <= '1';
-				green <= '0';
+			WHEN s7 => -- solid amber light for NS and solid red for EW, and both crossing lights are reset to 0
+				redNS <= '0';
+				yellowNS <= '1';
+				greenNS <= '0';
 				
 				redEW <= '1';
 				yellowEW <= '0';
@@ -244,10 +279,10 @@ BEGIN
 				EWCrossing <= '0';
 				CurrentState <= "0111";
 									
-			WHEN s8 =>		
-				red <= '1';
-				yellow <= '0';
-				green <= '0';
+			WHEN s8 => -- green light blinking for EW and solid red for NS, and crossing prohibited
+				redNS <= '1';
+				yellowNS <= '0';
+				greenNS <= '0';
 				
 				redEW <= '0';
 				yellowEW <= '0';
@@ -257,10 +292,10 @@ BEGIN
 				EWCrossing <= '0';
 				CurrentState <= "1000";
 								
-			WHEN s9 =>		
-				red <= '1';
-				yellow <= '0';
-				green <= '0';
+			WHEN s9 => -- green light blinking for EW and solid red for NS, and crossing prohibited
+				redNS <= '1';
+				yellowNS <= '0';
+				greenNS <= '0';
 				
 				redEW <= '0';
 				yellowEW <= '0';
@@ -270,10 +305,10 @@ BEGIN
 				EWCrossing <= '0';
 				CurrentState <= "1001";
 									
-			WHEN s10 =>		
-				red <= '1';
-				yellow <= '0';
-				green <= '0';
+			WHEN s10 => -- solid green light for EW and solid red for NS with EW crossing signal activated
+				redNS <= '1';
+				yellowNS <= '0';
+				greenNS <= '0';
 				
 				redEW <= '0';
 				yellowEW <= '0';
@@ -283,10 +318,10 @@ BEGIN
 				EWCrossing <= '1';
 				CurrentState <= "1010";
 									
-			WHEN s11 =>		
-				red <= '1';
-				yellow <= '0';
-				green <= '0';
+			WHEN s11 => -- solid green light for EW and solid red for NS with EW crossing signal activated
+				redNS <= '1';
+				yellowNS <= '0';
+				greenNS <= '0';
 				
 				redEW <= '0';
 				yellowEW <= '0';
@@ -296,10 +331,10 @@ BEGIN
 				EWCrossing <= '1';
 				CurrentState <= "1011";
 							
-			WHEN s12 =>		
-				red <= '1';
-				yellow <= '0';
-				green <= '0';
+			WHEN s12 => -- solid green light for EW and solid red for NS with EW crossing signal activated	
+				redNS <= '1';
+				yellowNS <= '0';
+				greenNS <= '0';
 				
 				redEW <= '0';
 				yellowEW <= '0';
@@ -309,10 +344,10 @@ BEGIN
 				EWCrossing <= '1';
 				CurrentState <= "1100";
 								
-			WHEN s13 =>		
-				red <= '1';
-				yellow <= '0';
-				green <= '0';
+			WHEN s13 => -- solid green light for EW and solid red for NS with EW crossing signal activated
+				redNS <= '1';
+				yellowNS <= '0';
+				greenNS <= '0';
 				
 				redEW <= '0';
 				yellowEW <= '0';
@@ -322,10 +357,10 @@ BEGIN
 				EWCrossing <= '1';
 				CurrentState <= "1101";
 									
-			WHEN s14 =>		
-				red <= '1';
-				yellow <= '0';
-				green <= '0';
+			WHEN s14 => -- amber green light for EW and solid red for NS with crossing prohibited, and EW crossing request cleared
+				redNS <= '1';
+				yellowNS <= '0';
+				greenNS <= '0';
 				
 				redEW <= '0';
 				yellowEW <= '1';
@@ -338,23 +373,31 @@ BEGIN
 				NSClear <= '0';
 				EWClear <= '1';
 									
-			WHEN s15 =>		
-				red <= '1';
-				yellow <= '0';
-				green <= '0';
+			WHEN s15 => -- final state with offline mode handling
+				yellowNS <= '0';
+				greenNS <= '0';
 				
 				redEW <= '0';
-				yellowEW <= '1';
-				greenEW <= '0';
+				greenEW <= '0';			
 				
 				NSCrossing <= '0';
 				EWCrossing <= '0';
 				CurrentState <= "1111";
+
+				IF (offline_mode = '1') THEN -- red NS and yellow EW blinking if stuck in state 15
+				redNS <= blink_sig;
+				yellowEW <= blink_sig;
+
+				ELSE -- solid red for NS and solid yellow for EW
+				redNS <= '1';
+				yellowEW <= '1';
+				END IF;
+
 				
-			WHEN others =>
-				red <= '0';
-				yellow <= '0';
-				green <= '0';
+			WHEN others => -- no lights on otherwise, if other staet
+				redNS <= '0';
+				yellowNS <= '0';
+				greenNS <= '0';
 				
 				redEW <= '0';
 				yellowEW <= '0';
