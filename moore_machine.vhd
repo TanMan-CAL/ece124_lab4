@@ -15,21 +15,21 @@ Entity moore_machine IS Port
  enable       : IN std_logic;  -- state machine enable control
  blink_sig    : IN std_logic;  -- blinking signal for certain lights
 
- -- traffic request inputs from different directions (NS & EW)
+ -- traffic request inputs for pedestrian crossing from different directions (NS & EW)
  NSrequest  : IN std_logic;  
  EWrequest  : IN std_logic;  
 
- -- traffic light outputs for North-South direction
+ -- traffic light outputs for North-South direction as single bits
  redNS, yellowNS, greenNS : OUT std_logic;
 
- -- traffic light outputs for East-West direction
+ -- traffic light outputs for East-West direction as single bits
  redEW, yellowEW, greenEW : OUT std_logic;
 
- -- crossing and clearance/reset outputs
+ -- crossing and reset outputs for pedestrian crossing requests
  NSCrossing, EWCrossing : OUT std_logic;
  NSClear, EWClear       : OUT std_logic; 
 
- -- debug output to show current state of machine
+ -- current state of machine as a 4 bit vector
  CurrentState : OUT std_logic_vector(3 downto 0)
  );
 END ENTITY;
