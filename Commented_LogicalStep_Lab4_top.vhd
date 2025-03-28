@@ -71,59 +71,60 @@ ARCHITECTURE SimpleCircuit OF LogicalStep_Lab4_top IS
    -- synchronizer to prevent metastability from asynchronous inputs
    component synchronizer 
    port (
-        clk  : in std_logic;
-        reset : in std_logic;
-        din  : in std_logic; -- flip flop input
-        dout : out std_logic -- final output from the two flip flops
+        clk     : in std_logic;    -- system clock
+        reset   : in std_logic;    -- reset input
+        din     : in std_logic;    -- asynchronous input signal
+        dout    : out std_logic    -- synchronized, stable output signal
    );
    end component;
 
    -- holding register component to store button press states
    component holding_register 
    port (
-        clk           : in std_logic;
-        reset         : in std_logic;
-        register_clr  : in std_logic;
-        din           : in std_logic;
-        dout          : out std_logic
+        clk           : in std_logic;   -- system clock
+        reset         : in std_logic;   -- reset input
+        register_clr  : in std_logic;   -- clear signal to reset stored state
+        din           : in std_logic;   -- input signal to be stored
+        dout          : out std_logic   -- stored output signal
    );
    end component;
   
    -- moore machine for controlling traffic light sequencing
    component moore_machine 
    port (
-        switch : in std_logic;
-        clk_input  : in std_logic;
-        reset      : in std_logic;
-        enable     : in std_logic; -- simple enable
-        blink_sig  : in std_logic; -- blinking signal timing
-        NSrequest  : in std_logic; -- request from NS pedestrian
-        EWrequest  : in std_logic; -- request from EW pedestrian
-        red        : out std_logic; -- red NW bool
-        yellow     : out std_logic; -- yellow NW bool
-        green      : out std_logic; -- green NW bool
-        redEW      : out std_logic; -- red EW bool
-        yellowEW   : out std_logic; -- yellow EW bool
-        greenEW    : out std_logic; -- green EW bool
-        NSCrossing : out std_logic; -- NS safe crossing bool
-        EWCrossing : out std_logic; -- EW safe crossing bool
-        NSClear    : out std_logic; -- NS clear functionality
-        EWClear    : out std_logic; -- EW clear functionality
-        CurrentState : out std_logic_vector(3 downto 0) -- current state for debugging purposes
+        offline_mode : in std_logic;  -- Offline/alternative mode switch
+        clk_input  : in std_logic;    -- Clock input for state transitions
+        reset      : in std_logic;    -- System reset input
+        enable     : in std_logic;    -- Clock enable for state progression
+        blink_sig  : in std_logic;    -- Blinking timing signal for visual indicators
+        NSrequest  : in std_logic;    -- North-South pedestrian crossing request
+        EWrequest  : in std_logic;    -- East-West pedestrian crossing request
+        redNS        : out std_logic;   -- North-West red light state
+        yellowNS     : out std_logic;   -- North-West yellow light state
+        greenNS      : out std_logic;   -- North-West green light state
+        redEW      : out std_logic;   -- East-West red light state
+        yellowEW   : out std_logic;   -- East-West yellow light state
+        greenEW    : out std_logic;   -- East-West green light state
+        NSCrossing : out std_logic;   -- North-South safe crossing indicator
+        EWCrossing : out std_logic;   -- East-West safe crossing indicator
+        NSClear    : out std_logic;   -- North-South crossing clearance signal
+        EWClear    : out std_logic;   -- East-West crossing clearance signal
+        CurrentState : out std_logic_vector(3 downto 0) -- Current state for debugging
    );
    end component;
 
 -- INTERNAL SIGNALS
 ----------------------------------------------------------------------------------------------------
-CONSTANT sim_mode : boolean := FALSE; -- Set to FALSE for FPGA, TRUE for simulations
+-- Simulation mode configuration: FALSE for FPGA implementation, TRUE for simulation environments
+CONSTANT sim_mode : boolean := FALSE;
 
--- reset signals
+-- reset signals for system initialization and synchronization
 SIGNAL rst, rst_n_filtered, synch_rst : std_logic;
 
--- clock and timing signals
+-- clock control signals
 SIGNAL sm_clken, blink_sig : std_logic;
 
--- push button signals
+-- push-button input processing signals
 SIGNAL pb_n_filtered, pb : std_logic_vector(3 downto 0);
 
 -- synchronization signals
@@ -132,18 +133,18 @@ SIGNAL sync_out, sync_out_final : std_logic_vector(1 downto 0);
 -- pedestrian safe crossing indicators
 SIGNAL NSCrossingDisplay, EWCrossingDisplay : std_logic;
 
--- traffic light control signals
-SIGNAL red, yellow, green : std_logic; -- for EW
+-- traffic light control signals for both traffic directions
+SIGNAL redNS, yellowNS, greenNS : std_logic; 
 SIGNAL redEW, yellowEW, greenEW : std_logic;
 
--- clear signals for crossings
+-- crossing clearance signals to reset pedestrian requests
 SIGNAL EWClear, NSClear : std_logic;
 
--- 7-segment display signals
+-- 7-segment display data signals for traffic light status
 SIGNAL light, lightEW : std_logic_vector(6 downto 0);
 
 -- switch for offline mode functionality
-SIGNAL switch : std_logic;
+SIGNAL offline_mode : std_logic;
 
 BEGIN
 
@@ -156,16 +157,18 @@ leds(2) <= EWCrossingDisplay; -- show EW crossing status
 leds(3) <= sync_out_final(1); -- EW pedestrian is waiting
 
 -- formatting traffic light signals for 7-segment display
-light   <= yellow & "00" & green & "00" & red;
+-- [Yellow][Spacing][Green][Spacing][Red]
+light   <= yellowNS & "00" & greenNS & "00" & redNS;
 lightEW <= yellowEW & "00" & greenEW & "00" & redEW;
 
 -- offline mode switch connected to switch 0
-switch <= sw(0);
+offline_mode <= sw(0);
 
 
 -- COMPONENT INSTANCES
 ----------------------------------------------------------------------------------------------------
--- push button filtering
+-- push-button input processing chain
+-- filters and converts push-button signals
 INST0: pb_filters        port map (clkin_50, rst_n, rst_n_filtered, pb_n, pb_n_filtered);
 INST1: pb_inverters      port map (rst_n_filtered, rst, pb_n_filtered, pb);
 
@@ -173,20 +176,22 @@ INST1: pb_inverters      port map (rst_n_filtered, rst, pb_n_filtered, pb);
 INST2: synchronizer      port map (clkin_50, '0', rst, synch_rst); 
 INST3: clock_generator   port map (sim_mode, synch_rst, clkin_50, sm_clken, blink_sig);
 
--- synchronizing and storing button presses
+-- Pedestrian crossing request synchronization
+-- Handles North-South pedestrian button
 INST4: synchronizer      port map (clkin_50, synch_rst, pb(0), sync_out(0));
 INST5: holding_register  port map (clkin_50, synch_rst, NSClear, sync_out(0), sync_out_final(0)); 
 
+-- Handles East-West pedestrian button
 INST6: synchronizer      port map (clkin_50, synch_rst, pb(1), sync_out(1));
--- holding register to hold pedestrian inputs
 INST7: holding_register  port map (clkin_50, synch_rst, EWClear, sync_out(1), sync_out_final(1)); 
 
--- traffic light moore state machine with all needed input and outputs
-INST8: moore_machine     port map (switch, clkin_50, synch_rst, sm_clken, blink_sig, sync_out_final(0), sync_out_final(1),
-                                   red, yellow, green, redEW, yellowEW, greenEW, NSCrossingDisplay, EWCrossingDisplay, 
+-- graffic light Moore state machine
+-- central logic for managing traffic light sequences and pedestrian crossings
+INST8: moore_machine     port map (offline_mode, clkin_50, synch_rst, sm_clken, blink_sig, sync_out_final(0), sync_out_final(1),
+                                   redNS, yellowNS, greenNS, redEW, yellowEW, greenEW, NSCrossingDisplay, EWCrossingDisplay, 
                                    NSClear, EWClear, leds(7 downto 4));
 
--- 7-segment display multiplexer
+-- 7-segment display multiplexer for the NS and EW colour signals on display
 INST9: segment7_mux      port map (clkin_50, lightEW, light, seg7_data, seg7_char1, seg7_char2);
 
 END SimpleCircuit;
