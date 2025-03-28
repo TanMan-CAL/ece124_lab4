@@ -1,3 +1,6 @@
+-- Members: Naman Biyani and Tanmay Shah
+-- LS206_T20_LAB4
+
 library ieee;
 use ieee.std_logic_1164.all;
 
