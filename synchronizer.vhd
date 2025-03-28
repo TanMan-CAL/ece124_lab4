@@ -5,8 +5,8 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
--- Entity declaration for the synchronizer (to get an asynchronous input signal to a synchronous domain) 
--- Helps reduce metastability
+-- entity declaration for the synchronizer (to get an asynchronous input signal to a synchronous domain) 
+-- helps reduce metastability
 entity synchronizer is 
     port (
         clk     : in std_logic;   -- system clock input
