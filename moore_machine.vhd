@@ -83,7 +83,7 @@ BEGIN
 			end if;
 				
 		WHEN s1 => -- state s1: prioritize East-West traffic request if active (skip from state 1 to 6)
-			   		-- else move to state 2
+			   -- else move to state 2
 			if (EWrequest = '1' and NSrequest = '0') then
 				next_state <= s6;
 			else
@@ -169,7 +169,7 @@ BEGIN
     NSClear <= '0';
     EWClear <= '0';
 
-    CASE current_state IS -- CurrentState updates in each state to represent the binary representation of the current state
+    CASE current_state IS -- CurrentState updates in each state to represent the binary representation of the current state from 0 to 15
 	  
         		WHEN s0 => -- green light blinking for NS and solid red for EW, and crossing is prohibited
 				redNS <= '0';
@@ -250,7 +250,7 @@ BEGIN
 				CurrentState <= "0101";
 								
 			WHEN s6 => -- solid amber light for NS and solid red for EW, and activates NS request clear for pedestrian walk
-		
+				   -- crossing is prohibited
 				redNS <= '0';
 				yellowNS <= '1';
 				greenNS <= '0';
@@ -266,7 +266,7 @@ BEGIN
 				NSClear <= '1';
 				EWClear <= '0';
 									
-			WHEN s7 => -- solid amber light for NS and solid red for EW, and both crossing lights are reset to 0
+			WHEN s7 => -- solid amber light for NS and solid red for EW, and crossing is prohibited
 				redNS <= '0';
 				yellowNS <= '1';
 				greenNS <= '0';
@@ -373,7 +373,7 @@ BEGIN
 				NSClear <= '0';
 				EWClear <= '1';
 									
-			WHEN s15 => -- final state with offline mode handling
+			WHEN s15 => -- final state with offline mode handling, and crossing is prohibited
 				yellowNS <= '0';
 				greenNS <= '0';
 				
@@ -394,7 +394,7 @@ BEGIN
 				END IF;
 
 				
-			WHEN others => -- no lights on otherwise, if other staet
+			WHEN others => -- no lights on otherwise, if other state
 				redNS <= '0';
 				yellowNS <= '0';
 				greenNS <= '0';
