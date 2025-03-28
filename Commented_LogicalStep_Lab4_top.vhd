@@ -185,7 +185,7 @@ INST5: holding_register  port map (clkin_50, synch_rst, NSClear, sync_out(0), sy
 INST6: synchronizer      port map (clkin_50, synch_rst, pb(1), sync_out(1));
 INST7: holding_register  port map (clkin_50, synch_rst, EWClear, sync_out(1), sync_out_final(1)); 
 
--- graffic light Moore state machine
+-- traffic light Moore state machine
 -- central logic for managing traffic light sequences and pedestrian crossings
 INST8: moore_machine     port map (offline_mode, clkin_50, synch_rst, sm_clken, blink_sig, sync_out_final(0), sync_out_final(1),
                                    redNS, yellowNS, greenNS, redEW, yellowEW, greenEW, NSCrossingDisplay, EWCrossingDisplay, 
