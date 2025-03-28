@@ -18,8 +18,7 @@ end synchronizer;
  
 -- architecture defining the synchronization behavior
 architecture circuit of synchronizer is
-    -- Internal signal to create a two-stage shift register
-    -- Helps reduce metastability by providing multiple sampling stages
+    -- internal signal to create a two-stage shift register
     Signal sreg : std_logic_vector(1 downto 0);
 
 BEGIN
