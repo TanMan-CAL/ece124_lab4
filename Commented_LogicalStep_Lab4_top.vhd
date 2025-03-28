@@ -178,10 +178,14 @@ INST3: clock_generator   port map (sim_mode, synch_rst, clkin_50, sm_clken, blin
 
 -- Pedestrian crossing request synchronization
 -- Handles North-South pedestrian button
+-- synchronizes the asynchronous input to a global clock to be used in the final circuit
+-- -- then held in holding register
 INST4: synchronizer      port map (clkin_50, synch_rst, pb(0), sync_out(0));
 INST5: holding_register  port map (clkin_50, synch_rst, NSClear, sync_out(0), sync_out_final(0)); 
 
 -- Handles East-West pedestrian button
+-- synchronizes the asynchronous input to a global clock to be used in the final circuit
+-- then held in holding register
 INST6: synchronizer      port map (clkin_50, synch_rst, pb(1), sync_out(1));
 INST7: holding_register  port map (clkin_50, synch_rst, EWClear, sync_out(1), sync_out_final(1)); 
 
